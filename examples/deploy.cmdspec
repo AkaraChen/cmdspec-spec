@@ -1,9 +1,13 @@
 # Deploy a containerized service with rollback support
 
-registry = "registry.example.com"
-app = "web-api"
-health_url = "https://api.example.com/health"
-timeout = 120
+# Container registry URL
+ARG registry: string
+# Application name
+ARG app: string
+# Health check endpoint
+ARG health_url: string
+# Rollout timeout in seconds
+ARG? timeout: number = 120
 
 # Preconditions
 ASSERT $(which docker) EXISTS      "docker is required"

@@ -20,6 +20,8 @@ without a prefix is structural (variables, control flow, comments).
 
 | Syntax | Meaning |
 |--------|---------|
+| `ARG name: type` | Required input parameter |
+| `ARG? name: type = default` | Optional input with default |
 | `RUN cmd` | Execute `cmd`; halt on failure |
 | `RUN? cmd` | Execute `cmd`; ignore failure |
 | `var = value` | Variable assignment |
@@ -29,7 +31,7 @@ without a prefix is structural (variables, control flow, comments).
 | `FOR var IN expr ... END` | Iteration |
 | `WHILE (cond) ... END` | Loop |
 | `TRY ... ON_FAIL ... END` | Error recovery |
-| `FN name(args) ... RETURN ... END` | Function |
+| `FN name ... ARG ... RETURN ... END` | Function (params via ARG in body) |
 | `ASYNC ... END` | Run enclosed commands in parallel |
 | `PIPE ... END` | Multi-line pipeline |
 | `ENV var = value` | Set environment variable |
@@ -71,9 +73,14 @@ These replace bash parameter expansion. Translate to the target shell equivalent
 | `$v.strip_prefix(p)` | remove prefix | `${v#p}` |
 | `$v.strip_suffix(p)` | remove suffix | `${v%p}` |
 
+## ARG types
+
+`string`, `number`, `boolean`, `string[]`, `number[]`
+
 ## Writing cmdspec
 
-1. Prefix every executable command with `RUN` or `RUN?` — no bare commands.
+1. Declare inputs with `ARG`/`ARG?` at the top of the file or FN body, with a `#` comment above each.
+2. Prefix every executable command with `RUN` or `RUN?` — no bare commands.
 2. Use `→` for redirection, never `>`.
 3. Use `ASSERT` for preconditions the consumer should verify first.
 4. Use `TRY/ON_FAIL` for recovery logic, `RUN?` for ignore-and-continue.
@@ -81,3 +88,28 @@ These replace bash parameter expansion. Translate to the target shell equivalent
 6. Close every block with `END` — no `fi`, `esac`, `done`.
 7. Use the `cmdspec` language identifier in code fences, never `bash` or `sh`.
 8. Execution halts on `RUN` failure by default — only add error handling where recovery is meaningful.
+9. FN parameters go inside the body as ARG statements, not in a signature.
+
+## Example
+
+```cmdspec
+# Set up and deploy a Node.js app
+
+# Application root directory
+ARG app_dir: string
+# Target environment
+ARG? node_env: string = "development"
+
+ASSERT $(which node) EXISTS  "Node.js is required"
+
+RUN  cd $app_dir
+RUN  git pull origin main
+RUN  npm ci
+
+IF ($node_env == "production")
+  RUN  npm run build
+  RUN  pm2 restart ecosystem.config.js
+ELSE
+  RUN  npm run dev
+END
+```

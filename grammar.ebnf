@@ -3,6 +3,7 @@
 program        = { statement } ;
 
 statement      = comment
+               | arg_stmt
                | assignment
                | env_stmt
                | run_stmt
@@ -24,6 +25,12 @@ comment        = "#" , TEXT , NEWLINE ;
 
 (* Variables *)
 assignment     = IDENT , "=" , expr , NEWLINE ;
+
+(* Arguments *)
+arg_stmt       = ( "ARG" | "ARG?" ) , IDENT , ":" , type_expr , [ "=" , expr ] , NEWLINE ;
+
+type_expr      = "string" | "number" | "boolean"
+               | "string[]" | "number[]" ;
 
 env_stmt       = "ENV" , IDENT , ( "=" | "+=" ) , expr , NEWLINE ;
 
@@ -72,12 +79,11 @@ try_block      = "TRY" , NEWLINE ,
                  { statement } ,
                  "END" , NEWLINE ;
 
-(* Functions *)
-fn_block       = "FN" , IDENT , "(" , [ param_list ] , ")" , NEWLINE ,
+(* Functions — parameters declared via ARG/ARG? in body *)
+fn_block       = "FN" , IDENT , NEWLINE ,
+                 { arg_stmt } ,
                  { statement } ,
                  "END" , NEWLINE ;
-
-param_list     = IDENT , { "," , IDENT } ;
 
 return_stmt    = "RETURN" , [ expr ] , NEWLINE ;
 

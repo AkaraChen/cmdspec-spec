@@ -20,6 +20,26 @@ export function validate(program: AST.Program): Diagnostic[] {
 
   function visitNode(node: AST.Node) {
     switch (node.type) {
+      case "ArgStatement":
+        definedVariables.add(node.name);
+        if (node.optional && node.defaultValue === null) {
+          diagnostics.push({
+            level: "error",
+            message: `Optional argument "${node.name}" must have a default value`,
+            line: node.pos.line,
+            column: node.pos.column,
+          });
+        }
+        if (!node.optional && node.defaultValue !== null) {
+          diagnostics.push({
+            level: "warning",
+            message: `Required argument "${node.name}" has a default value — consider using ARG? instead`,
+            line: node.pos.line,
+            column: node.pos.column,
+          });
+        }
+        break;
+
       case "Assignment":
         definedVariables.add(node.name);
         break;
@@ -122,8 +142,8 @@ export function validate(program: AST.Program): Diagnostic[] {
           });
         }
         definedFunctions.add(node.name);
-        for (const p of node.params) {
-          definedVariables.add(p);
+        for (const arg of node.args) {
+          visitNode(arg);
         }
         walk(node.body);
         break;

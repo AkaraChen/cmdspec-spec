@@ -27,6 +27,8 @@ without a prefix is structural (variables, control flow, comments).
 
 | Syntax | Meaning |
 |--------|---------|
+| `ARG name: type` | Required input parameter |
+| `ARG? name: type = default` | Optional input with default |
 | `RUN cmd` | Execute `cmd`; halt on failure |
 | `RUN? cmd` | Execute `cmd`; ignore failure |
 | `var = value` | Variable assignment |
@@ -36,7 +38,7 @@ without a prefix is structural (variables, control flow, comments).
 | `FOR var IN expr ... END` | Iteration |
 | `WHILE (cond) ... END` | Loop |
 | `TRY ... ON_FAIL ... END` | Error recovery |
-| `FN name(args) ... RETURN ... END` | Function |
+| `FN name ... ARG ... RETURN ... END` | Function (params via ARG in body) |
 | `ASYNC ... END` | Run enclosed commands in parallel |
 | `PIPE ... END` | Multi-line pipeline |
 | `ENV var = value` | Set environment variable |
@@ -84,6 +86,7 @@ without a prefix is structural (variables, control flow, comments).
 6. Close every block with `END` — no `fi`, `esac`, `done`.
 7. Use the `cmdspec` language identifier in code fences, never `bash` or `sh`.
 8. Execution halts on `RUN` failure by default — only add error handling where recovery is meaningful.
+9. FN parameters go inside the body as ARG statements, not in a signature.
 
 ---
 

@@ -1,9 +1,12 @@
 # Basic cmdspec examples
 
-# Variable assignment
-name = "my-project"
-port = 3000
-flags = ["--verbose", "--color"]
+# Top-level arguments
+# Project name used for build output
+ARG name: string
+# Dev server port
+ARG? port: number = 3000
+# Extra CLI flags
+ARG? flags: string[] = ["--verbose", "--color"]
 
 # Simple commands
 RUN  mkdir -p ./build

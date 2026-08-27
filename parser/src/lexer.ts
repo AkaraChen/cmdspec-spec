@@ -33,6 +33,8 @@ export type TokenType =
   | "EOF";
 
 const KEYWORDS = new Set([
+  "ARG",
+  "ARG?",
   "RUN",
   "RUN?",
   "PIPE",
@@ -296,8 +298,8 @@ export class Lexer {
       this.advance();
     }
 
-    // RUN? is a special keyword
-    if (word === "RUN" && this.pos < this.source.length && this.source[this.pos] === "?") {
+    // RUN? and ARG? are special keywords
+    if ((word === "RUN" || word === "ARG") && this.pos < this.source.length && this.source[this.pos] === "?") {
       word += "?";
       this.advance();
     }

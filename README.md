@@ -3,13 +3,18 @@
 A pseudo-shell language for describing command-line intent to AI agents — unambiguously, without the quirks of bash, and explicitly **not executable**.
 
 ```cmdspec
-repo = "https://github.com/org/app"
+# Container registry URL
+ARG registry: string
+# Health check endpoint
+ARG health_url: string
+# Enable dry-run mode
+ARG? dry_run: boolean = false
 
 ASSERT $(which docker) EXISTS  "docker is required"
 
 TRY
-  RUN  docker build -t app:latest .
-  RUN  docker push registry.example.com/app:latest
+  RUN  docker build -t $registry/app:latest .
+  RUN  docker push $registry/app:latest
   RUN  kubectl rollout restart deploy/app
 ON_FAIL
   RUN  docker compose logs → $logfile
@@ -34,6 +39,7 @@ END
 
 ### Read cmdspec
 
+- `ARG name: type` = required input, `ARG? name: type = default` = optional input
 - `RUN` = execute this command
 - `RUN?` = execute, but failure is ok
 - `→` = redirect output (translates to `>` in real shell)

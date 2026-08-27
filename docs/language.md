@@ -2,6 +2,48 @@
 
 This is the complete syntax reference for cmdspec. For motivation and use cases, see [use-cases.md](use-cases.md). For tooling, see [tooling.md](tooling.md).
 
+## Arguments
+
+`ARG` declares a required input. `ARG?` declares an optional input with a default value. Arguments must appear at the top of the file (before any commands) or at the top of a `FN` body (before any commands in that function).
+
+```cmdspec
+# Container registry URL
+ARG registry: string
+# Deploy environment
+ARG env: string
+# Enable dry-run mode
+ARG? dry_run: boolean = false
+# Number of replicas
+ARG? replicas: number = 2
+# Extra CLI flags
+ARG? flags: string[] = ["--verbose"]
+```
+
+**Types**: `string`, `number`, `boolean`, `string[]`, `number[]`
+
+**Rules**:
+- `ARG` (required) must not have a default value
+- `ARG?` (optional) must have a default value
+- Comments immediately above an ARG serve as its description
+
+### ARG in Functions
+
+Functions declare their parameters as ARG statements at the top of the body, not in a signature:
+
+```cmdspec
+FN deploy
+  # Deployment target name
+  ARG target: string
+  # Image version tag
+  ARG version: string
+  # Replicas to scale to
+  ARG? replicas: number = 1
+
+  RUN  kubectl set image deploy/$target app=img:$version
+  RUN  kubectl scale deploy/$target --replicas=$replicas
+END
+```
+
 ## Comments
 
 Lines starting with `#`. Inline comments with ` #` (space before `#`).
@@ -174,8 +216,15 @@ END
 
 ## Functions
 
+Functions are declared with `FN` followed by the name. Parameters are declared as `ARG`/`ARG?` statements at the top of the body.
+
 ```cmdspec
-FN deploy(target, version)
+FN deploy
+  # Deployment target
+  ARG target: string
+  # Image version tag
+  ARG version: string
+
   RUN  kubectl set image deploy/$target app=img:$version
   RUN  kubectl rollout status deploy/$target
   RETURN $?

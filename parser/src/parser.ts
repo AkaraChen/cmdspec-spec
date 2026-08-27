@@ -65,6 +65,9 @@ export class Parser {
 
     if (tok.type === "KEYWORD") {
       switch (tok.value) {
+        case "ARG":
+        case "ARG?":
+          return this.parseArg();
         case "RUN":
         case "RUN?":
           return this.parseRun();
@@ -104,6 +107,59 @@ export class Parser {
     this.error(`Unexpected token: ${tok.type} "${tok.value}"`);
     this.advance();
     return null;
+  }
+
+  private parseArg(): AST.ArgStatement {
+    const tok = this.current();
+    const optional = tok.value === "ARG?";
+    this.advance();
+
+    const name = this.expectIdent();
+    this.expect("COLON");
+
+    let argType: AST.ArgType = "string";
+    if (this.check("IDENT")) {
+      const typeStr = this.current().value;
+      this.advance();
+      // Check for array types (string[], number[])
+      if (this.check("BRACKET_OPEN")) {
+        this.advance();
+        this.expect("BRACKET_CLOSE");
+        const arrayType = typeStr + "[]";
+        if (arrayType === "string[]" || arrayType === "number[]") {
+          argType = arrayType as AST.ArgType;
+        } else {
+          this.error(`Invalid array type: ${arrayType}`);
+        }
+      } else if (typeStr === "string" || typeStr === "number" || typeStr === "boolean") {
+        argType = typeStr as AST.ArgType;
+      } else {
+        this.error(`Invalid type: "${typeStr}" — expected string, number, boolean, string[], or number[]`);
+      }
+    }
+
+    let defaultValue: string | null = null;
+    if (this.check("ASSIGN")) {
+      this.advance();
+      defaultValue = "";
+      while (!this.isEOF() && !this.check("NEWLINE")) {
+        const cur = this.current();
+        defaultValue += cur.value;
+        this.advance();
+      }
+      defaultValue = defaultValue.trim();
+    }
+
+    this.consumeNewline();
+
+    return {
+      type: "ArgStatement",
+      name,
+      argType,
+      optional,
+      defaultValue,
+      pos: { line: tok.line, column: tok.column },
+    };
   }
 
   private parseComment(): AST.Comment {
@@ -292,15 +348,18 @@ export class Parser {
     this.expect("KEYWORD", "FN");
 
     const name = this.expectIdent();
-    this.expect("PAREN_OPEN");
-
-    const params: string[] = [];
-    while (!this.isEOF() && !this.check("PAREN_CLOSE")) {
-      if (params.length > 0) this.expect("COMMA");
-      params.push(this.expectIdent());
-    }
-    this.expect("PAREN_CLOSE");
     this.consumeNewline();
+
+    // Collect ARG/ARG? statements at the top of the function body
+    const args: AST.ArgStatement[] = [];
+    while (!this.isEOF()) {
+      this.skipNewlines();
+      if (this.checkKeyword("ARG") || this.checkKeyword("ARG?")) {
+        args.push(this.parseArg());
+      } else {
+        break;
+      }
+    }
 
     const body = this.parseBody(new Set(["END"]));
     this.expect("KEYWORD", "END");
@@ -309,7 +368,7 @@ export class Parser {
     return {
       type: "FnBlock",
       name,
-      params,
+      args,
       body,
       pos: { line: tok.line, column: tok.column },
     };

@@ -1,6 +1,7 @@
 export type Node =
   | Program
   | Comment
+  | ArgStatement
   | Assignment
   | EnvStatement
   | RunStatement
@@ -30,6 +31,17 @@ export interface Program {
 export interface Comment {
   type: "Comment";
   text: string;
+  pos: Position;
+}
+
+export type ArgType = "string" | "number" | "boolean" | "string[]" | "number[]";
+
+export interface ArgStatement {
+  type: "ArgStatement";
+  name: string;
+  argType: ArgType;
+  optional: boolean;
+  defaultValue: string | null;
   pos: Position;
 }
 
@@ -97,7 +109,7 @@ export interface TryBlock {
 export interface FnBlock {
   type: "FnBlock";
   name: string;
-  params: string[];
+  args: ArgStatement[];
   body: Node[];
   pos: Position;
 }

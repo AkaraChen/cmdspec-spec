@@ -1,7 +1,9 @@
 # Error handling patterns in cmdspec
 
-db_url = "postgres://localhost:5432/myapp"
-backup_dir = "/var/backups/db"
+# Database connection string
+ARG db_url: string
+# Where to store backups
+ARG? backup_dir: string = "/var/backups/db"
 
 # Assertions as preconditions
 ASSERT $(which pg_dump) EXISTS   "PostgreSQL client tools required"
@@ -43,8 +45,7 @@ attempts = 0
 WHILE ($attempts < 3)
   TRY
     RUN  curl -f -s $health_url
-    # If we get here, it worked — break out
-    ABORT "success"  # no BREAK keyword; use function + RETURN instead
+    ABORT "success"
   ON_FAIL
     attempts = $($attempts + 1)
     WAIT 5s
@@ -52,7 +53,12 @@ WHILE ($attempts < 3)
 END
 
 # Function-based retry (cleaner)
-FN wait_for_health(url, max_attempts)
+FN wait_for_health
+  # URL to poll
+  ARG url: string
+  # Maximum number of attempts
+  ARG? max_attempts: number = 5
+
   FOR i IN $(seq 1 $max_attempts)
     RUN? curl -f -s $url
     IF ($? == 0)
