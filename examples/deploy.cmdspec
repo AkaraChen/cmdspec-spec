@@ -1,0 +1,40 @@
+# Deploy a containerized service with rollback support
+
+registry = "registry.example.com"
+app = "web-api"
+health_url = "https://api.example.com/health"
+timeout = 120
+
+# Preconditions
+ASSERT $(which docker) EXISTS      "docker is required"
+ASSERT $(which kubectl) EXISTS     "kubectl is required"
+ASSERT $KUBECONFIG IS_FILE         "KUBECONFIG must point to a valid file"
+
+# Build
+version = $(git describe --tags --always)
+image = "$registry/$app:$version"
+
+TRY
+  RUN  docker build -t $image .
+  RUN  docker push $image
+ON_FAIL
+  ABORT "Build/push failed for $image"
+END
+
+# Deploy
+previous = $(kubectl get deploy/$app -o jsonpath="{.spec.template.spec.containers[0].image}")
+
+TRY
+  RUN  kubectl set image deploy/$app app=$image
+  RUN  kubectl rollout status deploy/$app --timeout=${timeout}s
+
+  # Health check loop
+  WHILE ($(curl -s -o /dev/null -w "%{http_code}" $health_url) != "200")
+    WAIT 5s
+  END
+ON_FAIL
+  # Rollback
+  RUN  kubectl set image deploy/$app app=$previous
+  RUN  kubectl rollout status deploy/$app
+  ABORT "Deploy failed, rolled back to $previous"
+END

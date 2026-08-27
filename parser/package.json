@@ -1,0 +1,20 @@
+{
+  "name": "cmdspec",
+  "version": "0.1.0",
+  "description": "Reference parser and validator for cmdspec",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "cmdspec": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "check": "node dist/cli.js check",
+    "parse": "node dist/cli.js parse"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "typescript": "^5.5.0"
+  },
+  "license": "MIT"
+}

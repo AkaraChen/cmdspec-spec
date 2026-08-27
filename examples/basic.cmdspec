@@ -1,0 +1,48 @@
+# Basic cmdspec examples
+
+# Variable assignment
+name = "my-project"
+port = 3000
+flags = ["--verbose", "--color"]
+
+# Simple commands
+RUN  mkdir -p ./build
+RUN  npm install
+RUN  npm run build
+
+# Tolerant command
+RUN? rm -rf ./dist
+
+# Capture output
+node_version = $(node --version)
+current_branch = $(git branch --show-current)
+
+# Conditionals
+IF ($current_branch == "main")
+  RUN  npm run build --mode=production
+ELSE
+  RUN  npm run build --mode=development
+END
+
+# String methods
+filename = $path.basename()
+ext = $filename.split(".")[1]
+upper_name = $name.to_upper()
+
+# Pipes
+RUN  cat package.json | jq '.dependencies' | sort → $deps
+
+PIPE
+  find . -name "*.ts"
+  grep -l "import.*React"
+  sort
+  → $react_files
+END
+
+# Environment
+ENV NODE_ENV = "production"
+
+# Loop
+FOR file IN $(find ./src -name "*.test.ts")
+  RUN  npx jest $file --verbose
+END

@@ -1,0 +1,69 @@
+# Error handling patterns in cmdspec
+
+db_url = "postgres://localhost:5432/myapp"
+backup_dir = "/var/backups/db"
+
+# Assertions as preconditions
+ASSERT $(which pg_dump) EXISTS   "PostgreSQL client tools required"
+ASSERT $backup_dir IS_DIR        "Backup directory must exist"
+
+# Simple ignore-failure
+RUN? mkdir -p $backup_dir
+
+# Try/catch with recovery
+TRY
+  RUN  pg_dump $db_url → $backup_dir/latest.sql
+  RUN  gzip $backup_dir/latest.sql
+ON_FAIL
+  RUN  rm -f $backup_dir/latest.sql
+  RUN  rm -f $backup_dir/latest.sql.gz
+  ABORT "Database backup failed, cleaned up partial files"
+END
+
+# Nested error handling
+TRY
+  RUN  docker compose up -d
+
+  TRY
+    RUN  docker compose exec app rails db:migrate
+  ON_FAIL
+    RUN  docker compose exec app rails db:rollback
+    ABORT "Migration failed, rolled back"
+  END
+
+  RUN  docker compose exec app rails db:seed
+ON_FAIL
+  RUN  docker compose down
+  RUN  docker compose logs → /tmp/compose-failure.log
+  ABORT "Service startup failed, logs at /tmp/compose-failure.log"
+END
+
+# Retry pattern with while
+attempts = 0
+WHILE ($attempts < 3)
+  TRY
+    RUN  curl -f -s $health_url
+    # If we get here, it worked — break out
+    ABORT "success"  # no BREAK keyword; use function + RETURN instead
+  ON_FAIL
+    attempts = $($attempts + 1)
+    WAIT 5s
+  END
+END
+
+# Function-based retry (cleaner)
+FN wait_for_health(url, max_attempts)
+  FOR i IN $(seq 1 $max_attempts)
+    RUN? curl -f -s $url
+    IF ($? == 0)
+      RETURN 0
+    END
+    WAIT 5s
+  END
+  RETURN 1
+END
+
+result = $(RUN wait_for_health($health_url, 5))
+IF ($result != 0)
+  ABORT "Service never became healthy"
+END

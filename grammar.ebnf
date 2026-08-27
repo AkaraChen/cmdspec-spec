@@ -1,0 +1,157 @@
+(* cmdspec EBNF Grammar *)
+
+program        = { statement } ;
+
+statement      = comment
+               | assignment
+               | env_stmt
+               | run_stmt
+               | pipe_block
+               | if_block
+               | for_block
+               | while_block
+               | try_block
+               | fn_block
+               | async_block
+               | assert_stmt
+               | wait_stmt
+               | abort_stmt
+               | return_stmt
+               | fn_call
+               | NEWLINE ;
+
+comment        = "#" , TEXT , NEWLINE ;
+
+(* Variables *)
+assignment     = IDENT , "=" , expr , NEWLINE ;
+
+env_stmt       = "ENV" , IDENT , ( "=" | "+=" ) , expr , NEWLINE ;
+
+(* Commands *)
+run_stmt       = ( "RUN" | "RUN?" ) , command_body , [ redirect ] , NEWLINE ;
+
+command_body   = COMMAND_TEXT , { "|" , COMMAND_TEXT } ;
+
+pipe_block     = "PIPE" , NEWLINE ,
+                 COMMAND_TEXT , NEWLINE ,
+                 { COMMAND_TEXT , NEWLINE } ,
+                 [ redirect , NEWLINE ] ,
+                 "END" , NEWLINE ;
+
+redirect       = "→" , redirect_target , { "," , redirect_target } ;
+
+redirect_target = [ stream_name , ":" ] , expr ;
+
+stream_name    = "stdout" | "stderr" | "STDOUT" | "STDERR" ;
+
+(* Control Flow *)
+if_block       = "IF" , "(" , condition , ")" , NEWLINE ,
+                 { statement } ,
+                 { elif_clause } ,
+                 [ else_clause ] ,
+                 "END" , NEWLINE ;
+
+elif_clause    = "ELIF" , "(" , condition , ")" , NEWLINE ,
+                 { statement } ;
+
+else_clause    = "ELSE" , NEWLINE ,
+                 { statement } ;
+
+for_block      = "FOR" , IDENT , "IN" , expr , NEWLINE ,
+                 { statement } ,
+                 "END" , NEWLINE ;
+
+while_block    = "WHILE" , "(" , condition , ")" , NEWLINE ,
+                 { statement } ,
+                 "END" , NEWLINE ;
+
+(* Error Handling *)
+try_block      = "TRY" , NEWLINE ,
+                 { statement } ,
+                 "ON_FAIL" , NEWLINE ,
+                 { statement } ,
+                 "END" , NEWLINE ;
+
+(* Functions *)
+fn_block       = "FN" , IDENT , "(" , [ param_list ] , ")" , NEWLINE ,
+                 { statement } ,
+                 "END" , NEWLINE ;
+
+param_list     = IDENT , { "," , IDENT } ;
+
+return_stmt    = "RETURN" , [ expr ] , NEWLINE ;
+
+fn_call        = "RUN" , IDENT , "(" , [ arg_list ] , ")" , NEWLINE ;
+
+arg_list       = expr , { "," , expr } ;
+
+(* Concurrency *)
+async_block    = "ASYNC" , NEWLINE ,
+                 { statement } ,
+                 "END" , NEWLINE ;
+
+(* Assertions *)
+assert_stmt    = "ASSERT" , expr , predicate , [ expr ] , [ STRING ] , NEWLINE ;
+
+predicate      = "EXISTS" | "NOT_EXISTS"
+               | "IS_FILE" | "IS_DIR"
+               | "IS_EMPTY" | "NOT_EMPTY"
+               | "IN" | "NOT_IN" ;
+
+(* Other *)
+wait_stmt      = "WAIT" , DURATION , NEWLINE ;
+
+abort_stmt     = "ABORT" , STRING , NEWLINE ;
+
+(* Conditions *)
+condition      = condition_or ;
+
+condition_or   = condition_and , { "OR" , condition_and } ;
+
+condition_and  = condition_not , { "AND" , condition_not } ;
+
+condition_not  = [ "NOT" ] , condition_atom ;
+
+condition_atom = expr , comparator , expr
+               | "(" , condition , ")"
+               | expr , predicate , [ expr ] ;
+
+comparator     = "==" | "!=" | ">" | "<" | ">=" | "<=" ;
+
+(* Expressions *)
+expr           = capture
+               | variable , { method_call }
+               | array_literal
+               | object_literal
+               | STRING
+               | NUMBER
+               | BOOLEAN ;
+
+capture        = "$(" , command_body , ")" , { field_access } ;
+
+variable       = "$" , IDENT , { index_access } , { field_access } ;
+
+method_call    = "." , IDENT , "(" , [ arg_list ] , ")" ;
+
+index_access   = "[" , NUMBER , "]" ;
+
+field_access   = "." , IDENT ;
+
+array_literal  = "[" , [ expr , { "," , expr } ] , "]" ;
+
+object_literal = "{" , [ kv_pair , { "," , kv_pair } ] , "}" ;
+
+kv_pair        = IDENT , ":" , expr ;
+
+(* Terminals *)
+IDENT          = LETTER , { LETTER | DIGIT | "_" | "-" } ;
+STRING         = '"' , { CHAR } , '"' ;
+NUMBER         = [ "-" ] , DIGIT , { DIGIT } , [ "." , DIGIT , { DIGIT } ] ;
+BOOLEAN        = "true" | "false" ;
+DURATION       = NUMBER , ( "ms" | "s" | "m" | "h" ) ;
+COMMAND_TEXT    = (* any text that is not a keyword at line start *) ;
+TEXT           = (* any text until newline *) ;
+NEWLINE        = "\n" ;
+LETTER         = "a".."z" | "A".."Z" | "_" ;
+DIGIT          = "0".."9" ;
+CHAR           = (* any character except unescaped quote *) ;
